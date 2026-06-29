@@ -26,8 +26,6 @@ jobs:
         run: pip install duckdb pyarrow
 
       - name: Rebuild parquet from HuggingFace
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python build_explorer_data.py
 
       - name: Run parquet tests
