@@ -1,0 +1,46 @@
+name: Rebuild explorer parquet
+
+on:
+  # Run daily — OPM data on HuggingFace updates a few times a month.
+  # Only commits if the parquet actually changed.
+  schedule:
+    - cron: '0 15 * * *'   # 11am ET, after the Impact-Map pipeline usually finishes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install duckdb pyarrow
+
+      - name: Rebuild parquet from HuggingFace
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python build_explorer_data.py
+
+      - name: Run parquet tests
+        run: pip install pytest && python -m pytest tests/ -v
+
+      - name: Commit updated parquet
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/accessions_explorer.parquet
+          if ! git diff --staged --quiet; then
+            git commit -m "Rebuild explorer parquet [automated]"
+            git push
+          else
+            echo "Parquet unchanged — no commit needed."
+          fi
