@@ -193,37 +193,37 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
     </div>
     <div class="stats-strip">
       <div class="stat-card" id="sc-total">
-        <div class="sc-label">Total hires</div>
+        <div class="sc-label" data-tip="Total accessions in the selected period — new hires, transfers in, and SES appointments, subject to any active filters.">Total hires</div>
         <div class="sc-row"><span class="sc-a" id="st-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="st-b">—</span></div>
         <div class="sc-delta" id="st-d"></div>
         <div class="sc-sub">hires in each period</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">Avg age at hire</div>
+        <div class="sc-label" data-tip="Average age of new hires, estimated by weighting the midpoint of each 5-year age bracket (e.g., '25–29' → 27) by the number of hires in that bracket.">Avg age at hire</div>
         <div class="sc-row"><span class="sc-a" id="sa-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="sa-b">—</span></div>
         <div class="sc-delta" id="sa-d"></div>
         <div class="sc-sub">weighted by bracket midpoint</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">Avg prior service</div>
+        <div class="sc-label" data-tip="Average years of prior federal civilian service at the time of hire. Computed as months of prior service ÷ 12, weighted across all hires with a reported value.">Avg prior service</div>
         <div class="sc-row"><span class="sc-a" id="sl-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="sl-b">—</span></div>
         <div class="sc-delta" id="sl-d"></div>
         <div class="sc-sub">years of prior fed. service</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">No prior service</div>
+        <div class="sc-label" data-tip="Share of hires with zero months of prior federal service — i.e., first-time federal employees with no previous civilian federal work history.">No prior service</div>
         <div class="sc-row"><span class="sc-a" id="sn-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="sn-b">—</span></div>
         <div class="sc-delta" id="sn-d"></div>
         <div class="sc-sub">first-time federal employees</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">Veteran hires</div>
+        <div class="sc-label" data-tip="Share of hires who qualify for veterans' preference under 5 U.S.C. Chapter 21, based on honorable active-duty military service. Preference applies in competitive hiring.">Veteran hires</div>
         <div class="sc-row"><span class="sc-a" id="sv-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="sv-b">—</span></div>
         <div class="sc-delta" id="sv-d"></div>
         <div class="sc-sub">% with veteran preference</div>
       </div>
       <div class="stat-card">
-        <div class="sc-label">Supervisory</div>
+        <div class="sc-label" data-tip="Share of hires whose supervisory status is Supervisor or Manager (code 2), Supervisor under CSRA (code 4), or Management Official (code 5) — positions with meaningful supervisory or managerial responsibilities.">Supervisory</div>
         <div class="sc-row"><span class="sc-a" id="ss-a">—</span><span class="sc-arrow">→</span><span class="sc-b" id="ss-b">—</span></div>
         <div class="sc-delta" id="ss-d"></div>
         <div class="sc-sub">% supervisory or managerial</div>
@@ -422,6 +422,14 @@ function showTip(text, e) {
   TIP.style.top = y + 'px';
 }
 function hideTip() { TIP.style.display = 'none'; }
+
+// Stat card label tooltips — delegated from the cards row
+document.querySelectorAll('.sc-label[data-tip]').forEach(el => {
+  el.style.cursor = 'help';
+  el.style.textDecoration = 'underline dotted #aaa';
+  el.addEventListener('mouseover', e => showTip(el.dataset.tip, e));
+  el.addEventListener('mouseleave', hideTip);
+});
 
 // ── SQL helpers ───────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replaceAll("'", "''"); }
