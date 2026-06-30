@@ -38,9 +38,6 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
 .chip-x { cursor: pointer; font-weight: 700; width: 18px; height: 18px;
   display: flex; align-items: center; justify-content: center; border-radius: 50%; }
 .chip-x:hover { background: var(--ca); color: #fff; }
-.xfer-label { display: flex; align-items: center; gap: 5px; font-size: .84rem;
-  cursor: pointer; margin-left: auto; white-space: nowrap; }
-.xfer-label input { accent-color: var(--ca); width: 14px; height: 14px; }
 .filter-bar-empty { font-size: .82rem; color: #999; }
 
 /* PERIODS ROW */
@@ -142,9 +139,6 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
   <div class="filter-bar" id="filter-bar">
     <button class="add-btn" id="add-filter-btn">+ Add filter</button>
     <span class="filter-bar-empty" id="filter-bar-empty">No filters applied</span>
-    <label class="xfer-label">
-      <input type="checkbox" id="excl-xfer" checked> Exclude transfers
-    </label>
   </div>
 
   <div class="periods-row">
@@ -330,7 +324,6 @@ const state = {
   appointmentTypes: [],
   supervisoryStatuses: [],
   veteranIndicators: [],
-  excludeTransfers: true,
   a: { preset: 'before', start: '202401', end: '202501' },
   b: { preset: 'after',  start: '202502', end: '202604' },
 };
@@ -443,8 +436,6 @@ function buildClauses(period) {
   if (state.accessionCats.length) {
     const inList = state.accessionCats.map(v => `'${esc(v)}'`).join(', ');
     c.push(`accession_category IN (${inList})`);
-  } else if (state.excludeTransfers) {
-    c.push(`accession_category NOT LIKE 'TRANSFER%'`);
   }
   if (state.payPlans.length) c.push(`pay_plan IN (${state.payPlans.map(v => `'${esc(v)}'`).join(', ')})`);
   if (state.grades.length) c.push(`grade IN (${state.grades.map(v => `'${esc(v)}'`).join(', ')})`);
@@ -788,10 +779,6 @@ document.querySelectorAll('.period-presets').forEach(row => {
   });
 });
 
-document.getElementById('excl-xfer').addEventListener('change', e => {
-  state.excludeTransfers = e.target.checked;
-  updateAll();
-});
 
 // ── Chart constants ───────────────────────────────────────────────────────────
 const AGE_ORDER = ['LESS THAN 20','20-24','25-29','30-34','35-39','40-44','45-49','50-54','55-59','60-64','65 OR MORE'];
