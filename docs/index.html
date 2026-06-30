@@ -346,6 +346,83 @@ let appointmentTypeOptions = [];
 let supervisoryOptions = [];
 let veteranOptions = [];
 
+// ── OPM definitions (for hover tooltips) ─────────────────────────────────────
+const DEFS = {
+  accession_category: {
+    'NEW HIRE - COMPETITIVE SERVICE APPOINTMENT': 'Hired through open competition — merit-based examination and ranking under Title 5 civil service rules. The traditional career federal hire path.',
+    'NEW HIRE - EXCEPTED SERVICE APPOINTMENT': 'Hired outside competitive examining under authority granted by law or executive order (Schedules A, B, C, D, or other excepted authority).',
+    'TRANSFER IN - INDIVIDUAL TRANSFER': 'An existing federal employee who moved from another agency without a break in service.',
+    'TRANSFER IN - MASS TRANSFER': 'Employees moved as a group when a program or function transfers between agencies.',
+    'NEW HIRE - SENIOR EXECUTIVE SERVICE (SES) APPT': 'Appointment to the Senior Executive Service — the top career executive tier in the federal government.',
+  },
+  supervisory_status: {
+    'SUPERVISOR OR MANAGER': 'Meets minimum requirements of the GS Supervisory Guide or equivalent pay-schedule standard. Also the most common code for SES positions.',
+    'SUPERVISOR (CSRA)': 'Meets the statutory "supervisor" definition (5 U.S.C. § 7103(a)(10)) but does not meet GS Supervisory Guide minimums.',
+    'MANAGEMENT OFFICIAL (CSRA)': 'Meets the "management official" definition (5 U.S.C. § 7103(a)(11)) — formulates or implements management policy — but not the Supervisory Guide definition.',
+    'LEADER': 'Titled "Lead"; meets Work Leader Grade Evaluation Guide minimums. Leads a team doing wage-system or one-grade-interval work.',
+    'TEAM LEADER': 'Titled "Lead"; meets GS Team Leader Grade-Evaluation Guide. Leads a GS team performing two-grade-interval work.',
+    'ALL OTHER POSITIONS': 'No supervisory, managerial, or leader responsibilities — the large majority of federal positions.',
+  },
+  appointment_type: {
+    'CAREER-CONDITIONAL (COMPETITIVE SERVICE PERMANENT)': 'Permanent competitive-service hire, subject to a 3-year probationary period. Converts to Career (full tenure) after completing probation.',
+    'CAREER (COMPETITIVE SERVICE PERMANENT)': 'Permanent competitive-service appointment with full tenure — has completed career-conditional probation.',
+    'OTHER (EXCEPTED SERVICE PERMANENT)': 'Permanent excepted-service appointment under authority other than Schedule A, B, C, or D.',
+    'NONPERMANENT (COMPETITTIVE SERVICE NONPERMANENT)': 'Time-limited competitive-service appointment — e.g., temporary, seasonal, or project-specific terms. (Note: "COMPETITTIVE" is the spelling used in OPM data.)',
+    'OTHER (EXCEPTED SERVICE NONPERMANENT)': 'Non-permanent excepted-service appointment under a miscellaneous authority.',
+    'SCHEDULE A (EXCEPTED SERVICE PERMANENT)': 'Schedule A — positions impractical to fill through competitive examining, including many disability-hiring and certain attorney appointments.',
+    'SCHEDULE A (EXCEPTED SERVICE NONPERMANENT)': 'Non-permanent Schedule A appointment — same authority, time-limited.',
+    'SCHEDULE B (EXCEPTED SERVICE PERMANENT)': 'Schedule B — competitive examining not practical, but merit-based selection standards still apply.',
+    'SCHEDULE B (EXCEPTED SERVICE NONPERMANENT)': 'Non-permanent Schedule B appointment.',
+    'SCHEDULE C (EXCEPTED SERVICE NONPERMANENT)': 'Schedule C — confidential or policy-determining positions; typically political appointees who serve at the pleasure of the appointing authority.',
+    'SCHEDULE D (EXCEPTED SERVICE PERMANENT)': 'Schedule D — Pathways Programs (Internship, Recent Graduates, Presidential Management Fellows).',
+    'SCHEDULE D (EXCEPTED SERVICE NONPERMANENT)': 'Non-permanent Schedule D / Pathways appointment.',
+    'CAREER (SENIOR EXECUTIVE SERVICE PERMANENT)': 'Career SES — competitively selected, merit-based, with the strongest job protections within the Senior Executive Service.',
+    'NONCAREER (SENIOR EXECUTIVE SERVICE PERMANENT)': 'Noncareer SES — political appointees in senior executive-level positions, serving at the pleasure of the appointing authority.',
+  },
+  veteran_indicator: {
+    'Y': 'Veteran — qualifies for veterans\' preference under 5 U.S.C. Chapter 21, based on honorable active-duty military service.',
+    'N': 'Non-veteran — does not qualify for veterans\' preference in federal hiring.',
+  },
+  pay_plan: {
+    'GENERAL SCHEDULE': 'The GS pay system — the most common federal schedule. Covers most white-collar professional and clerical positions in grades GS-1 through GS-15, each with 10 within-grade steps.',
+    'NONSUPERVISORY PAY SCHEDULES - FEDERAL WAGE SYSTEM': 'The FWS (blue-collar) schedule for trade, craft, and labor positions. Pay rates are set by local prevailing wages surveyed by OPM.',
+    'ADMINISTRATIVELY DETERMINED RATES, NOT ELSEWHERE SPECIFIED': 'Pay rates set by agency administrative action under specific statutory authority, not covered by another standard pay plan.',
+    'TRANSPORTATION SECURITY ADMINISTRATION EMPLOYEES OTHER THAN EXECUTIVES': 'TSA-specific pay system for most TSA employees (e.g., Transportation Security Officers), separate from the GS schedule.',
+    'GRADES SIMILAR TO GENERAL SCHEDULE': 'Agency-specific pay systems using the same grade structure as GS but administered separately under agency authority.',
+    'NURSING': 'Special pay schedule for federal nurses under the Nurse Pay Act (38 U.S.C. § 7455), primarily used at VA medical centers.',
+    'GS EMPLOYEES IN GRADES 3 THROUGH 10 PAID A LAW ENFORCEMENT OFFICER SPECIAL BASE RATE': 'Special base rate supplement for GS-3 through GS-10 law enforcement officers (e.g., Border Patrol Agents, Customs Officers).',
+    'STANDARD CAREER GROUP - PROFESSIONAL/ANALYTICAL PAY SCHEDULE': 'Broadband pay schedule used in DoD and other agency demonstration projects, replacing GS grades with wider pay bands.',
+    'TEACHING POSITIONS': 'Pay schedule for federal teachers at DoD overseas and domestic schools (DODEA) and VA.',
+    'BUSINESS MANAGEMENT AND TECHNICAL MANAGEMENT PROFESSIONAL': 'Broadband pay schedule for DoD acquisition and technical management workforce demonstration projects.',
+    'MEDICAL AND DENTAL': 'Special pay schedule for VA physicians, dentists, and similar clinical professionals under 38 U.S.C.',
+    'FEDERAL AVIATION ADMINISTRATION CORE COMPENSATION PLAN': 'FAA-specific pay system separate from GS, covering most FAA employees under FAA\'s independent personnel authority.',
+    'SENIOR EXECUTIVE SERVICE': 'The SES pay band — a single range (equivalent to EX-II through EX-IV) for top career executives, with pay set by the agency within OPM limits.',
+    'SIMILAR TO THE GENERAL SCHEDULE': 'Positions paid on a schedule analogous to GS but under agency-specific authority (common in legislative branch or independent agencies).',
+    'DEMONSTRATION SCIENTIFIC AND ENGINEERING': 'Broadband system for scientific and engineering staff under OPM-approved demonstration projects, often at DoD research labs.',
+    'MARITIME PAY SCHEDULES--5 U.S.C. 5348': 'Pay for federal mariners, set by collective bargaining and prevailing maritime industry wages.',
+  },
+};
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+const TIP = document.createElement('div');
+Object.assign(TIP.style, {
+  position: 'fixed', background: '#1e293b', color: '#f1f5f9',
+  fontSize: '.73rem', lineHeight: '1.45', maxWidth: '300px',
+  padding: '.45rem .7rem', borderRadius: '.4rem', pointerEvents: 'none',
+  zIndex: '9999', display: 'none', boxShadow: '0 4px 16px rgba(0,0,0,.4)',
+});
+document.body.appendChild(TIP);
+
+function showTip(text, e) {
+  TIP.textContent = text;
+  TIP.style.display = 'block';
+  const x = Math.min(e.clientX + 14, window.innerWidth - 316);
+  const y = Math.min(e.clientY + 14, window.innerHeight - TIP.offsetHeight - 10);
+  TIP.style.left = x + 'px';
+  TIP.style.top = y + 'px';
+}
+function hideTip() { TIP.style.display = 'none'; }
+
 // ── SQL helpers ───────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replaceAll("'", "''"); }
 
@@ -557,6 +634,25 @@ async function openDimFilter(dim) {
         <button class="btn-apply" id="dim-apply">Apply</button>
       </div>
     `);
+
+    // Tooltip on hover — delegate from container so it survives search re-renders
+    const DIM_TO_DEFS = {
+      pay_plan: 'pay_plan', appointment_type: 'appointment_type',
+      supervisory: 'supervisory_status', veteran: 'veteran_indicator',
+      accession_type: 'accession_category',
+    };
+    const defsField = DIM_TO_DEFS[dim];
+    if (defsField) {
+      const dimOpts = document.getElementById('dim-options');
+      dimOpts.addEventListener('mouseover', e => {
+        const lbl = e.target.closest('label.modal-opt');
+        if (!lbl) return;
+        const val = lbl.querySelector('input[type=checkbox]')?.dataset.val;
+        const def = val && DEFS[defsField]?.[val];
+        if (def) showTip(def, e);
+      });
+      dimOpts.addEventListener('mouseleave', hideTip);
+    }
 
     // Update pending on checkbox toggle (event delegation — survives re-renders for new nodes)
     document.getElementById('dim-options').addEventListener('change', e => {
@@ -787,22 +883,27 @@ function drawGroupedBar(svgId, dataA, dataB, order, opts = {}) {
     const gy = i * (groupH + groupGap);
     const pctA = dataA.find(d => d.label === label)?.pct || 0;
     const pctB = dataB.find(d => d.label === label)?.pct || 0;
+    const def = opts.field ? DEFS[opts.field]?.[label] : null;
 
     // Category label
-    g.append('text').attr('x', -6).attr('y', gy + groupH / 2)
+    const textEl = g.append('text').attr('x', -6).attr('y', gy + groupH / 2)
      .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
      .style('font-size', '.7rem').style('fill', '#333').text(trunc(label));
+    if (def) textEl.style('cursor', 'help').style('text-decoration', 'underline dotted #aaa')
+      .on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
 
     // Bar A
-    g.append('rect').attr('x', 0).attr('y', gy).attr('height', barH)
+    const barA = g.append('rect').attr('x', 0).attr('y', gy).attr('height', barH)
      .attr('width', Math.max(2, x(pctA))).attr('fill', COL_A).attr('rx', 2);
+    if (def) barA.style('cursor', 'help').on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
     if (pctA >= 0.5) g.append('text').attr('x', x(pctA) + 4).attr('y', gy + barH / 2)
      .attr('dominant-baseline', 'middle').style('font-size', '.65rem').style('fill', '#555')
      .text(`${pctA.toFixed(1)}%`);
 
     // Bar B
-    g.append('rect').attr('x', 0).attr('y', gy + barH + barGap).attr('height', barH)
+    const barB = g.append('rect').attr('x', 0).attr('y', gy + barH + barGap).attr('height', barH)
      .attr('width', Math.max(2, x(pctB))).attr('fill', COL_B).attr('rx', 2);
+    if (def) barB.style('cursor', 'help').on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
     if (pctB >= 0.5) g.append('text').attr('x', x(pctB) + 4).attr('y', gy + barH + barGap + barH / 2)
      .attr('dominant-baseline', 'middle').style('font-size', '.65rem').style('fill', '#555')
      .text(`${pctB.toFixed(1)}%`);
@@ -986,7 +1087,7 @@ async function updateAll() {
   const topPP = [...new Set([...ppA, ...ppB].map(r => r.pay_plan))]
     .map(pp => ({ pp, n: d3.sum([...ppA, ...ppB].filter(r => r.pay_plan === pp), r => Number(r.hires)) }))
     .sort((a, b) => b.n - a.n).slice(0, 10).map(d => d.pp);
-  drawGroupedBar('#payplan-svg', toPct(ppA, 'pay_plan', 'hires'), toPct(ppB, 'pay_plan', 'hires'), topPP, { mL: 170, maxLen: 24 });
+  drawGroupedBar('#payplan-svg', toPct(ppA, 'pay_plan', 'hires'), toPct(ppB, 'pay_plan', 'hires'), topPP, { mL: 170, maxLen: 24, field: 'pay_plan' });
 
   // Grade: top 20 by combined volume, sorted numerically then alpha
   const topGr = [...new Set([...grA, ...grB].map(r => r.grade))]
