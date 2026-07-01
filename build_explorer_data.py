@@ -8,7 +8,7 @@ Run monthly after new data arrives:
 """
 
 import duckdb, json, re, os
-from collections import defaultdict
+import urllib.request
 
 KEEP_COLS = [
     "personnel_action_effective_date_yyyymm",
@@ -29,7 +29,29 @@ KEEP_COLS = [
 ]
 
 BASE = "https://huggingface.co/datasets/impactproject/opm-ehri-data/resolve/main/"
+HF_API = "https://huggingface.co/api/datasets/impactproject/opm-ehri-data"
 OUT  = "docs/data/accessions_explorer.parquet"
+
+
+def list_best_accessions_files():
+    """Return the accessions file paths from the HuggingFace dataset, one per
+    month (highest version). Reads the dataset file listing from the HF API so
+    the build is self-contained — no local metadata/file_manifest.json needed.
+    """
+    with urllib.request.urlopen(HF_API) as resp:
+        siblings = json.load(resp)["siblings"]
+
+    pat = re.compile(r"accessions/accessions_(\d{6})_v(\d+)\.parquet$")
+    best = {}
+    for s in siblings:
+        m = pat.match(s["rfilename"])
+        if not m:
+            continue
+        yyyymm, ver = m.group(1), int(m.group(2))
+        if yyyymm not in best or best[yyyymm][1] < ver:
+            best[yyyymm] = (s["rfilename"], ver)
+
+    return [best[k][0] for k in sorted(best)]
 
 def main():
     con = duckdb.connect()
@@ -38,23 +60,9 @@ def main():
     con.execute("SET http_retries=5;")
     con.execute("SET http_retry_wait_ms=5000;")
 
-    with open("metadata/file_manifest.json") as f:
-        manifest = json.load(f)
-
-    # find best (highest version) accessions file per month
-    best = defaultdict(dict)
-    for key, meta in manifest.items():
-        if meta.get("data_type") != "accessions":
-            continue
-        m = re.search(r"_(\d{6})_v(\d+)", key)
-        if not m:
-            continue
-        yyyymm, ver = m.group(1), int(m.group(2))
-        existing = best.get(yyyymm)
-        if existing is None or existing[1] < ver:
-            best[yyyymm] = (key, ver)
-
-    keys = [v[0] for v in sorted(best.values(), key=lambda x: x[0])]
+    keys = list_best_accessions_files()
+    if not keys:
+        raise SystemExit("No accessions files found on HuggingFace — aborting.")
     print(f"Found {len(keys)} accessions files")
 
     cols_sql = ", ".join(KEEP_COLS)
