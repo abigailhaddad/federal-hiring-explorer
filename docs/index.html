@@ -133,7 +133,7 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
 <div class="wrap">
   <header>
     <h1>Federal Hiring Explorer</h1>
-    <p class="sub">OPM / EHRI accessions · May 2005–Apr 2026 · Compare two time periods side by side</p>
+    <p class="sub" id="sub">OPM / EHRI accessions · Compare two time periods side by side</p>
   </header>
 
   <div class="filter-bar" id="filter-bar">
@@ -151,9 +151,9 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
         <button class="pb" data-p="custom">Custom</button>
       </div>
       <div class="custom-inputs" id="ci-a" style="display:none">
-        <input type="month" id="sa" min="2005-05" max="2026-04" value="2024-01">
+        <input type="month" id="sa" value="2024-01">
         <span>to</span>
-        <input type="month" id="ea" min="2005-05" max="2026-04" value="2025-01">
+        <input type="month" id="ea" value="2025-01">
       </div>
       <div class="period-desc" id="dd-a">Jan 2024 – Jan 2025</div>
     </div>
@@ -167,11 +167,11 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
         <button class="pb" data-p="custom">Custom</button>
       </div>
       <div class="custom-inputs" id="ci-b" style="display:none">
-        <input type="month" id="sb" min="2005-05" max="2026-04" value="2025-02">
+        <input type="month" id="sb" value="2025-02">
         <span>to</span>
-        <input type="month" id="eb" min="2005-05" max="2026-04" value="2026-04">
+        <input type="month" id="eb">
       </div>
-      <div class="period-desc" id="dd-b">Feb 2025 – Apr 2026</div>
+      <div class="period-desc" id="dd-b"></div>
     </div>
   </div>
 
@@ -264,7 +264,7 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
   </div>
 
   <div class="data-note">
-    <p>Source: <a href="https://data.opm.gov/explore-data/data/data-downloads" target="_blank">OPM/EHRI Federal Workforce Data</a>, Accessions May 2005–April 2026, via <a href="https://huggingface.co/datasets/impactproject/opm-ehri-data" target="_blank">HuggingFace</a>. Counts OPM-suppressed to protect privacy. All periods filter on <em>effective date</em> of personnel action — backdated records appear in the period of their effective date, not their processing date. "Before inauguration" = Jan 2024–Jan 2025 (inauguration Jan 20, 2025; Jan 2025 included in full); "after" = Feb 2025–Apr 2026.</p>
+    <p>Source: <a href="https://data.opm.gov/explore-data/data/data-downloads" target="_blank">OPM/EHRI Federal Workforce Data</a>, Accessions <span id="foot-range"></span>, via <a href="https://huggingface.co/datasets/impactproject/opm-ehri-data" target="_blank">HuggingFace</a>. Counts OPM-suppressed to protect privacy. All periods filter on <em>effective date</em> of personnel action — backdated records appear in the period of their effective date, not their processing date. "Before inauguration" = Jan 2024–Jan 2025 (inauguration Jan 20, 2025; Jan 2025 included in full); "after" = <span id="foot-after"></span>.</p>
   </div>
 </div>
 
@@ -325,8 +325,14 @@ const state = {
   supervisoryStatuses: [],
   veteranIndicators: [],
   a: { preset: 'before', start: '202401', end: '202501' },
-  b: { preset: 'after',  start: '202502', end: '202604' },
+  b: { preset: 'after',  start: '202502', end: null },
 };
+
+// Data range (YYYYMM). Set from the parquet at boot by applyDateBounds() so the
+// UI always follows the latest month with no hardcoded end date. The "before"
+// and "after inauguration" start dates are fixed political anchors; only the
+// upper bound (MAX_YM) moves as new months land.
+let MIN_YM = null, MAX_YM = null;
 
 // Loaded from DB at init for the filter modal
 let agencyOptions = [];
@@ -447,7 +453,7 @@ function buildClauses(period) {
     c.push(`personnel_action_effective_date_yyyymm <= '202501'`);
   } else if (p.preset === 'after') {
     c.push(`personnel_action_effective_date_yyyymm >= '202502'`);
-    c.push(`personnel_action_effective_date_yyyymm <= '202604'`);
+    c.push(`personnel_action_effective_date_yyyymm <= '${MAX_YM}'`);
   } else if (p.preset === 'custom' && p.start && p.end) {
     c.push(`personnel_action_effective_date_yyyymm >= '${p.start}'`);
     c.push(`personnel_action_effective_date_yyyymm <= '${p.end}'`);
@@ -738,17 +744,42 @@ function ymToDesc(ym) {
   return `${MONTHS[+ym.slice(4,6) - 1]} ${ym.slice(0,4)}`;
 }
 
+function ymToInput(ym) {
+  return `${ym.slice(0,4)}-${ym.slice(4,6)}`;
+}
+
 function periodDesc(period) {
   const p = state[period];
-  if (p.preset === 'all') return 'All data (May 2005–Apr 2026)';
+  if (p.preset === 'all') return `All data (${ymToDesc(MIN_YM)} – ${ymToDesc(MAX_YM)})`;
   if (p.preset === 'before') return 'Jan 2024 – Jan 2025';
-  if (p.preset === 'after') return 'Feb 2025 – Apr 2026';
+  if (p.preset === 'after') return `${ymToDesc('202502')} – ${ymToDesc(MAX_YM)}`;
   if (p.preset === 'custom' && p.start && p.end) return `${ymToDesc(p.start)} – ${ymToDesc(p.end)}`;
   return '';
 }
 
 function updatePeriodDesc(period) {
   document.getElementById(`dd-${period}`).textContent = periodDesc(period);
+}
+
+// Apply the data's month range (MIN_YM..MAX_YM) to the UI: picker bounds,
+// Period B default end, the subtitle, the footer, and the period captions.
+// Called once at boot after MIN_YM/MAX_YM are read from the parquet.
+function applyDateBounds() {
+  const minInput = ymToInput(MIN_YM), maxInput = ymToInput(MAX_YM);
+  for (const id of ['sa', 'ea', 'sb', 'eb']) {
+    const el = document.getElementById(id);
+    el.min = minInput;
+    el.max = maxInput;
+  }
+  document.getElementById('eb').value = maxInput;
+  state.b.end = MAX_YM;
+
+  const range = `${ymToDesc(MIN_YM)} – ${ymToDesc(MAX_YM)}`;
+  document.getElementById('sub').textContent = `OPM / EHRI accessions · ${range} · Compare two time periods side by side`;
+  document.getElementById('foot-range').textContent = range;
+  document.getElementById('foot-after').textContent = `Feb 2025 – ${ymToDesc(MAX_YM)}`;
+  updatePeriodDesc('a');
+  updatePeriodDesc('b');
 }
 
 document.querySelectorAll('.period-presets').forEach(row => {
@@ -1113,6 +1144,14 @@ async function updateAll() {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 setLoading('Loading filter options…', 88);
 await loadDropdownData();
+const [range] = await query(
+  `SELECT MIN(personnel_action_effective_date_yyyymm) AS mn,
+          MAX(personnel_action_effective_date_yyyymm) AS mx
+   FROM read_parquet('accessions.parquet')`
+);
+MIN_YM = range.mn;
+MAX_YM = range.mx;
+applyDateBounds();
 setLoading('Running queries…', 94);
 renderChips();
 await updateAll();
