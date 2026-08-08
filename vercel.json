@@ -1,5 +1,29 @@
 {
   "buildCommand": null,
   "outputDirectory": "docs",
-  "framework": null
+  "framework": null,
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "federal-hiring-explorer.vercel.app"
+        }
+      ],
+      "destination": "https://federal-hiring-explorer.abigailhaddad.com/",
+      "permanent": false
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "federal-hiring-explorer.vercel.app"
+        }
+      ],
+      "destination": "https://federal-hiring-explorer.abigailhaddad.com/:path*",
+      "permanent": false
+    }
+  ]
 }
