@@ -42,3 +42,14 @@ jobs:
           else
             echo "Parquet unchanged — no commit needed."
           fi
+
+      # Vercel watched this repo and built on push, so publishing needed no step
+      # of its own. Cloudflare Pages is a direct upload, so it does. Runs
+      # unconditionally rather than only when the parquet changed: docs/ also
+      # holds index.html, and gating the deploy on the data would leave edits to
+      # the page unpublished.
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages deploy docs --project-name=federal-hiring-explorer --branch=main --commit-dirty=true

@@ -292,7 +292,7 @@ const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
 await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 URL.revokeObjectURL(workerUrl);
 
-setLoading('Downloading data (~30 MB)…', 20);
+setLoading('Downloading data (~11 MB)…', 20);
 const parquetUrl = new URL('data/accessions_explorer.parquet', window.location.href).href;
 const resp = await fetch(parquetUrl);
 const cl = Number(resp.headers.get('content-length')) || 0;

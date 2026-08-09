@@ -21,5 +21,11 @@ jobs:
       - name: Install dependencies
         run: pip install duckdb pytest
 
+      # Run first and independently of the parquet tests: if this fails the
+      # Cloudflare Pages deploy would be rejected outright, which is worth
+      # surfacing on its own line even if the data tests also fail.
+      - name: Check docs/ against the Cloudflare Pages 25 MiB per-file limit
+        run: python -m pytest tests/test_docs_size.py -v
+
       - name: Run parquet tests
         run: python -m pytest tests/ -v

@@ -44,7 +44,7 @@ def q(con, path, sql):
 
 def test_parquet_exists():
     assert PARQUET.exists()
-    assert PARQUET.stat().st_size > 10_000_000, "Parquet too small (<10 MB)"
+    assert PARQUET.stat().st_size > 5_000_000, "Parquet too small (<5 MB)"
 
 
 def test_columns(con, path):
@@ -56,9 +56,29 @@ def test_columns(con, path):
     assert not missing, f"Missing columns: {missing}"
 
 
-def test_row_count(con, path):
-    n = q(con, path, "SELECT COUNT(*) FROM {p}")[0]
-    assert n > 5_000_000, f"Too few rows: {n:,}"
+def test_total_hires(con, path):
+    """The parquet is pre-aggregated (one row per distinct dimension tuple,
+    with a summed count), so the meaningful volume check is total hires, not
+    row count. Every chart in the explorer reads SUM("count")."""
+    n = q(con, path, 'SELECT SUM("count") FROM {p}')[0]
+    assert n > 5_000_000, f"Too few hires: {n:,}"
+
+
+def test_fully_rolled_up(con, path):
+    """No dimension tuple may appear twice. If it does, the rollup in
+    build_explorer_data.py silently regressed and the file is bigger than it
+    needs to be (though query results would still be correct)."""
+    dims = ", ".join(f'"{c}"' for c in sorted(EXPECTED_COLS - {"count"}))
+    dupes = q(
+        con, path,
+        f"SELECT COUNT(*) FROM (SELECT {dims} FROM {{p}} GROUP BY ALL HAVING COUNT(*) > 1)",
+    )[0]
+    assert dupes == 0, f"{dupes:,} duplicate dimension tuples — rollup regressed"
+
+
+def test_count_is_positive(con, path):
+    bad = q(con, path, 'SELECT COUNT(*) FROM {p} WHERE "count" IS NULL OR "count" < 1')[0]
+    assert bad == 0, f"{bad:,} rows have a null or non-positive count"
 
 
 def test_date_range(con, path):
