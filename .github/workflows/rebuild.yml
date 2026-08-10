@@ -4,14 +4,73 @@ on:
   # Run daily — OPM data on HuggingFace updates a few times a month.
   # Only commits if the parquet actually changed.
   schedule:
-    - cron: '0 15 * * *'   # 11am ET, after the Impact-Map pipeline usually finishes
+    # 11am ET, after the Impact-Map pipeline usually finishes. At :37 and not
+    # :00 because GitHub's scheduled-workflow backlog is worst on the hour:
+    # while this was '0 15 * * *' the 2026-08-10 run was dispatched 20 minutes
+    # late and then waited 2h31m for a runner before it even started.
+    - cron: '37 15 * * *'
+    # Self-healing retry. No-ops in ~10 seconds if a run already succeeded
+    # today (see the `check` job), so on a normal day it costs nothing.
+    - cron: '37 21 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
+  actions: read   # `check` lists this workflow's earlier runs
+
+# The retry cron must never run alongside the primary — both commit and push
+# the same file, and the guard's "did today succeed?" answer is only correct
+# once the run it is asking about has finished.
+concurrency:
+  group: rebuild-explorer-parquet
+  cancel-in-progress: false
 
 jobs:
+  # Guard for the RETRY cron only. Deliberately skipped for the primary 15:37
+  # run and for manual dispatches: a separate job is a separate runner
+  # acquisition, and `rebuild` waits behind it via `needs`. The first run of the
+  # day can never find a prior success, so the guard would tell it nothing while
+  # adding latency to exactly the path this is meant to protect.
+  #
+  # Shares the concurrency group with the real work, so a retry that fires while
+  # the primary run is still going waits and then sees the success — no race.
+  check:
+    if: github.event_name == 'schedule' && github.event.schedule != '37 15 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_run: ${{ steps.decide.outputs.should_run }}
+    steps:
+      - name: Has a run already succeeded today?
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TODAY=$(date -u +%F)
+          SUCCESSES=$(gh run list \
+            --workflow=rebuild.yml \
+            --status=success \
+            --created="$TODAY" \
+            --limit 50 \
+            --json databaseId --jq 'length')
+
+          if [ "$SUCCESSES" -gt 0 ]; then
+            echo "$SUCCESSES successful run(s) already today ($TODAY) — skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No successful run yet today ($TODAY) — proceeding."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   rebuild:
+    needs: check
+    # `check` is skipped for the primary run and for dispatches, and a skipped
+    # dependency would normally skip this job too, hence the explicit result
+    # handling. Anything other than a clean "already done today" runs the work:
+    # a guard that errored tells us nothing, and a redundant rebuild is cheap —
+    # it only commits when the bytes actually change.
+    if: ${{ !cancelled() && (needs.check.result != 'success' || needs.check.outputs.should_run == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
