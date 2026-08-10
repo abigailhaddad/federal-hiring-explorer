@@ -30,8 +30,9 @@ row — so the byte output is deterministic and the daily rebuild workflow
 only commits on a genuine data change.
 """
 
-import duckdb, json, re, os
+import duckdb, json, re, os, shutil, tempfile, time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 # Dimensions the explorer filters and groups by. These become the grouping key.
 DIM_COLS = [
@@ -104,23 +105,59 @@ def list_best_accessions_files():
 
     return [best[k][0] for k in sorted(best)]
 
+
+def fetch(key, dest_dir, attempts=4):
+    """Download one upstream file, retrying on transient network failures."""
+    dest = os.path.join(dest_dir, os.path.basename(key))
+    for attempt in range(1, attempts + 1):
+        try:
+            req = urllib.request.Request(BASE + key, headers={"User-Agent": "federal-hiring-explorer"})
+            with urllib.request.urlopen(req, timeout=120) as resp, open(dest, "wb") as f:
+                shutil.copyfileobj(resp, f)
+            return dest
+        except Exception as e:
+            if attempt == attempts:
+                raise SystemExit(f"Failed to download {key} after {attempts} tries: {e}")
+            print(f"  {key}: {e} — retry {attempt}/{attempts - 1}")
+            time.sleep(5 * attempt)
+
+
+def download_all(keys, dest_dir):
+    """Fetch every upstream file to local disk before DuckDB reads any of it.
+
+    Handing read_parquet() the HTTPS URLs directly is what this used to do, and
+    it broke: httpfs issues a HEAD plus several range GETs per file, so ~260
+    files became well over a thousand round trips to HuggingFace, and a single
+    HEAD timing out failed the whole build (2026-08-10). One plain GET per file
+    is both faster and retryable per file. The corpus is only ~200 MB, so the
+    local copy is cheap.
+    """
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        return list(pool.map(lambda k: fetch(k, dest_dir), keys))
+
+
 def main():
     con = duckdb.connect()
-    con.execute("INSTALL httpfs; LOAD httpfs;")
-    con.execute("SET s3_region='us-east-1';")
-    con.execute("SET http_retries=5;")
-    con.execute("SET http_retry_wait_ms=5000;")
 
     keys = list_best_accessions_files()
     if not keys:
         raise SystemExit("No accessions files found on HuggingFace — aborting.")
     print(f"Found {len(keys)} accessions files")
 
-    cols_sql = ", ".join(KEEP_COLS)
-    urls = [f"'{BASE}{k}'" for k in keys]
-    union = f"SELECT {cols_sql} FROM read_parquet([{','.join(urls)}], union_by_name=true)"
+    tmp = tempfile.mkdtemp(prefix="opm-accessions-")
+    try:
+        paths = download_all(keys, tmp)
+        print(f"Downloaded {len(paths)} files "
+              f"({sum(os.path.getsize(p) for p in paths) / 1024 / 1024:.1f} MiB)")
 
-    con.execute(f"CREATE TABLE raw AS {union}")
+        cols_sql = ", ".join(KEEP_COLS)
+        files = ", ".join(f"'{p}'" for p in paths)
+        con.execute(
+            f"CREATE TABLE raw AS SELECT {cols_sql} "
+            f"FROM read_parquet([{files}], union_by_name=true)"
+        )
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
     # Upstream 'count' is a VARCHAR. Refuse to build rather than silently drop
     # hires if a non-numeric value ever shows up.
