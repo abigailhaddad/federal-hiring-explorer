@@ -753,6 +753,8 @@ function periodDesc(period) {
   if (p.preset === 'all') return `All data (${ymToDesc(MIN_YM)} – ${ymToDesc(MAX_YM)})`;
   if (p.preset === 'before') return 'Jan 2024 – Jan 2025';
   if (p.preset === 'after') return `${ymToDesc('202502')} – ${ymToDesc(MAX_YM)}`;
+  if (p.preset === 'custom' && p.start && p.end && p.start > p.end)
+    return `Start month (${ymToDesc(p.start)}) is after end month (${ymToDesc(p.end)}) — no data in this range`;
   if (p.preset === 'custom' && p.start && p.end) return `${ymToDesc(p.start)} – ${ymToDesc(p.end)}`;
   return '';
 }
