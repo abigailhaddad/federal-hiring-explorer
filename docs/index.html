@@ -1019,13 +1019,13 @@ function updateStats(totalA, ageRowsA, losRowA, totalB, ageRowsB, losRowB, vetRo
   }
   setStatCard(['sv-a','sv-b','sv-d'], vetPct(vetRowsA), vetPct(vetRowsB), fmtPct, fmtPct, ppDelta, false);
 
-  // Supervisory %: supervisory_status contains 'SUPERVISOR' or 'MANAGER'
+  // Supervisory %: SUPERVISOR OR MANAGER, SUPERVISOR (CSRA), MANAGEMENT OFFICIAL (CSRA) (codes 2, 4, 5, per the card tooltip)
   function supPct(rows) {
     const total = d3.sum(rows, r => Number(r.hires));
     if (!total) return null;
     const supHires = d3.sum(rows, r => {
       const v = String(r.supervisory_status || '').toUpperCase();
-      return (v.includes('SUPERVISOR') || v.includes('MANAGER')) ? Number(r.hires) : 0;
+      return (v.includes('SUPERVISOR') || v.includes('MANAGEMENT OFFICIAL')) ? Number(r.hires) : 0;
     });
     return supHires / total * 100;
   }
