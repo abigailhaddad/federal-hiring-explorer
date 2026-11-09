@@ -972,6 +972,8 @@ function updateStats(totalA, ageRowsA, losRowA, totalB, ageRowsB, losRowB, vetRo
   const fmtPct = v => v.toFixed(1) + '%';
 
   const pctDelta = (a, b) => {
+    // No hires in period A: percent change is undefined, not +Infinity% / NaN%.
+    if (a === 0) return { text: 'n/a (none in period A)', dir: 0 };
     const d = (b - a) / a * 100;
     return { text: (d >= 0 ? '+' : '') + d.toFixed(1) + '%', dir: Math.sign(d) };
   };
