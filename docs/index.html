@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Federal Hiring Explorer · OPM/EHRI Data</title>
-<link rel="icon" href="data:,">
+<meta name="description" content="Compare federal hires between two time periods side by side, using OPM/EHRI accessions data: age, education, prior service, pay plan and grade.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Federal Hiring Explorer">
+<meta property="og:description" content="Compare federal hires between two time periods side by side, using OPM/EHRI accessions data: age, education, prior service, pay plan and grade.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232E7D32'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='18' font-weight='700' text-anchor='middle' fill='white'%3EH%3C/text%3E%3C/svg%3E">
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
 :root {
@@ -80,14 +85,14 @@ header .sub { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
 /* STATS */
 .stats-strip { display: flex; gap: .875rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .stat-card { flex: 1; min-width: 180px; background: #fff; border: 1px solid var(--border); border-radius: .5rem; padding: .875rem 1rem; }
-.sc-label { font-size: .67rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: .6rem; }
+.sc-label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: .6rem; }
 .sc-row { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
 .sc-a { font-size: 1.6rem; font-weight: 700; color: var(--ca); line-height: 1; }
 .sc-b { font-size: 1.6rem; font-weight: 700; color: var(--cb); line-height: 1; }
 .sc-arrow { color: var(--muted); font-size: 1rem; }
 .sc-delta { font-size: .8rem; font-weight: 600; margin-top: .3rem; }
 .sc-delta.up { color: #1B7F35; } .sc-delta.dn { color: #B03020; } .sc-delta.flat { color: var(--muted); }
-.sc-sub { font-size: .7rem; color: var(--muted); margin-top: .2rem; }
+.sc-sub { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
 
 /* CHARTS */
 .chart-full { background: #fff; border: 1px solid var(--border); border-radius: .5rem; padding: 1.125rem 1.25rem; margin-bottom: 1rem; }
@@ -877,10 +882,10 @@ function drawMonthly(rowsA, rowsB) {
    .call(ax => {
      ax.select('.domain').attr('stroke', '#ccc');
      ax.selectAll('text').attr('transform','rotate(-38)').attr('text-anchor','end')
-       .style('font-size','0.68rem').attr('dy','0.4em');
+       .style('font-size','0.75rem').attr('dy','0.4em');
    });
   g.append('g').call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',.0f')))
-   .call(ax => { ax.select('.domain').remove(); ax.selectAll('text').style('font-size','0.68rem'); });
+   .call(ax => { ax.select('.domain').remove(); ax.selectAll('text').style('font-size','0.75rem'); });
 
   const line = d3.line().x(d => x(d.ym)).y(d => y(d.hires)).curve(d3.curveMonotoneX);
   if (da.length) g.append('path').datum(da).attr('fill','none').attr('stroke', COL_A).attr('stroke-width',2).attr('d', line);
@@ -893,7 +898,7 @@ function drawGroupedBar(svgId, dataA, dataB, order, opts = {}) {
   svg.selectAll('*').remove();
 
   const W = svg.node().getBoundingClientRect().width || 400;
-  const mL = opts.mL ?? 100, mR = 58, mT = 6, mB = 4;
+  const mL = opts.mL ?? 112, mR = 58, mT = 6, mB = 4;
   const maxLen = opts.maxLen ?? 999;
   const iW = W - mL - mR;
   const trunc = s => s.length > maxLen ? s.slice(0, maxLen - 1) + '…' : s;
@@ -916,7 +921,7 @@ function drawGroupedBar(svgId, dataA, dataB, order, opts = {}) {
     // Category label
     const textEl = g.append('text').attr('x', -6).attr('y', gy + groupH / 2)
      .attr('text-anchor', 'end').attr('dominant-baseline', 'middle')
-     .style('font-size', '.7rem').style('fill', '#333').text(trunc(label));
+     .style('font-size', '.75rem').style('fill', '#333').text(trunc(label));
     if (def) textEl.style('cursor', 'help').style('text-decoration', 'underline dotted #aaa')
       .on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
 
@@ -925,7 +930,7 @@ function drawGroupedBar(svgId, dataA, dataB, order, opts = {}) {
      .attr('width', Math.max(2, x(pctA))).attr('fill', COL_A).attr('rx', 2);
     if (def) barA.style('cursor', 'help').on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
     if (pctA >= 0.5) g.append('text').attr('x', x(pctA) + 4).attr('y', gy + barH / 2)
-     .attr('dominant-baseline', 'middle').style('font-size', '.65rem').style('fill', '#555')
+     .attr('dominant-baseline', 'middle').style('font-size', '.75rem').style('fill', '#555')
      .text(`${pctA.toFixed(1)}%`);
 
     // Bar B
@@ -933,7 +938,7 @@ function drawGroupedBar(svgId, dataA, dataB, order, opts = {}) {
      .attr('width', Math.max(2, x(pctB))).attr('fill', COL_B).attr('rx', 2);
     if (def) barB.style('cursor', 'help').on('mouseover', e => showTip(def, e)).on('mouseleave', hideTip);
     if (pctB >= 0.5) g.append('text').attr('x', x(pctB) + 4).attr('y', gy + barH + barGap + barH / 2)
-     .attr('dominant-baseline', 'middle').style('font-size', '.65rem').style('fill', '#555')
+     .attr('dominant-baseline', 'middle').style('font-size', '.75rem').style('fill', '#555')
      .text(`${pctB.toFixed(1)}%`);
   });
 }
@@ -1130,7 +1135,7 @@ async function updateAll() {
   const topPP = [...new Set([...ppA, ...ppB].map(r => r.pay_plan))]
     .map(pp => ({ pp, n: d3.sum([...ppA, ...ppB].filter(r => r.pay_plan === pp), r => Number(r.hires)) }))
     .sort((a, b) => b.n - a.n).slice(0, 10).map(d => d.pp);
-  drawGroupedBar('#payplan-svg', toPct(ppA, 'pay_plan', 'hires'), toPct(ppB, 'pay_plan', 'hires'), topPP, { mL: 170, maxLen: 24, field: 'pay_plan' });
+  drawGroupedBar('#payplan-svg', toPct(ppA, 'pay_plan', 'hires'), toPct(ppB, 'pay_plan', 'hires'), topPP, { mL: 188, maxLen: 24, field: 'pay_plan' });
 
   // Grade: top 20 by combined volume, sorted numerically then alpha
   const topGr = [...new Set([...grA, ...grB].map(r => r.grade))]
@@ -1158,9 +1163,15 @@ MAX_YM = range.mx;
 applyDateBounds();
 setLoading('Running queries…', 94);
 renderChips();
+// Charts measure their own width, and a hidden element measures as 0 (they then
+// fell back to a fixed 800/400 px and were cut off on a phone). Lay the content
+// out invisibly first, draw, then reveal it.
+const contentEl = document.getElementById('content');
+contentEl.style.visibility = 'hidden';
+contentEl.style.display = 'block';
 await updateAll();
+contentEl.style.visibility = '';
 document.getElementById('loading').style.display = 'none';
-document.getElementById('content').style.display = 'block';
 </script>
 </body>
 </html>
